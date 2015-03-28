@@ -1,32 +1,86 @@
 use std::rc::Rc;
 
-pub enum List<T> {
-    Cons(T, Rc<List<T>>),
-    Empty
+pub struct List<T> {
+    list: Rc<ListImpl<T>>
 }
 
 impl<T> List<T> {
-    pub fn empty() -> Rc<List<T>> {
-        Rc::new(List::Empty)
+    pub fn empty() -> List<T> {
+        List {
+            list: ListImpl::empty()
+        }
+    }
+
+    pub fn prepend(&self, value: T) -> List<T> {
+        List {
+            list: prepend((*self).list.clone(), value)
+        }
     }
 
     pub fn len(&self) -> usize {
-        match *self {
-            List::Cons(_, ref tail) => 1 + tail.len(),
-            List::Empty => 0
+        self.list.len()
+    }
+
+    pub fn head(&self) -> Option<&T> {
+        self.list.head()
+    }
+
+    pub fn tail(&self) -> List<T> {
+        List {
+            list: self.list.tail().clone()
         }
     }
 }
 
-pub fn prepend<T>(list: Rc<List<T>>, value: T) -> Rc<List<T>> {
-    Rc::new(List::Cons(value, list))
+enum ListImpl<T> {
+    Cons(T, Rc<ListImpl<T>>),
+    Empty
+}
+
+impl<T> ListImpl<T> {
+    fn empty() -> Rc<ListImpl<T>> {
+        Rc::new(ListImpl::Empty)
+    }
+
+    fn len(&self) -> usize {
+        match *self {
+            ListImpl::Cons(_, ref tail) => 1 + tail.len(),
+            ListImpl::Empty => 0
+        }
+    }
+
+    fn head(&self) -> Option<&T> {
+        match *self {
+            ListImpl::Cons(ref value, _) => Some(value),
+            ListImpl::Empty => None
+        }
+    }
+
+    fn tail(&self) -> Rc<ListImpl<T>> {
+        match *self {
+            ListImpl::Cons(_, ref tail) => tail.clone(),
+            ListImpl::Empty => ListImpl::empty()
+        }
+    }
+}
+
+fn prepend<T>(list: Rc<ListImpl<T>>, value: T) -> Rc<ListImpl<T>> {
+    Rc::new(ListImpl::Cons(value, list))
 }
 
 #[test]
 fn test_len() {
-    let x = prepend(prepend(prepend(List::empty(), 1), 2), 3);
-    let yx = prepend(x.clone(), 4);
-    let zx = prepend(x.clone(), 5);
+    let x = List::empty().prepend(1).prepend(2).prepend(3);
+    let yx = x.prepend(4);
+    let zx = x.prepend(5);
+
+    assert!(*x.head().unwrap() == 3);
+    assert!(*yx.head().unwrap() == 4);
+    assert!(*zx.head().unwrap() == 5);
+
+    assert!(*x.tail().head().unwrap() == 2);
+    assert!(*yx.tail().head().unwrap() == 3);
+    assert!(*zx.tail().head().unwrap() == 3);
 
     assert!(x.len() == 3);
     assert!(yx.len() == 4);
